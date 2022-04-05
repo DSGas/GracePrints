@@ -1,23 +1,29 @@
 const   express     = require("express"),
         app         = express(),
-        bodyParser  = require("body-parser");
+        bodyParser  = require("body-parser"),
+        mongoose    = require('mongoose'),
+        Print       = require('./models/print'),
+        Comment     = require('./models/comment'),
+        seedDB      = require('./seeds.js');
 
+mongoose.connect('mongodb://localhost/GracePrint');
 app.set("view engine","ejs");
 app.use(express.static("./public"));
 app.use(bodyParser.urlencoded({extened: true}));
-
-const prints = [
-    {name:"Iron man 3", Artist:"Phantom City Creative", url:"https://collider.com/wp-content/uploads/iron-man-3-mondo-poster-phantom-city-creative.jpg"},
-    {name:"The lord of the rings", Artist:"Gabz", url:"https://assets.bigcartel.com/product_images/317084082/LOTR_Variant_Gabz_1500x1000px.jpg?auto=format&fit=max&w=1500"},
-    {name:"Iron man", Artist:"Marko Manev", url:"https://images.squarespace-cdn.com/content/v1/6117360e2f0be106838fc4e6/20aac3d7-eafb-4c3d-9450-36fa38f3dac5/Iron-Man.jpg"}
-];
+// seedDB();
 
 app.get("/", function(req, res){
     res.render("landing.ejs");
 });
 
 app.get("/prints", function(req, res){
-    res.render("index.ejs",{prints:prints});
+    Print.find({},function(err, allPrints){
+        if(err){
+            console.log(err);
+        } else {
+            res.render("print/index.ejs",{prints: allPrints});
+        }
+    })
 });
 
 app.post("/prints", function(req, res){
@@ -25,12 +31,55 @@ app.post("/prints", function(req, res){
     let Artist = req.body.Artist;
     let url = req.body.url;
     let newPrint = {name:name, Artist:Artist,url:url};
-    prints.push(newPrint);
-    res.redirect("/prints");
-})
+    Print.create(newPrint, function(err, newlyAdded){
+        if(err){
+            console.log(err);
+        } else {
+            res.redirect("/prints");
+        }
+    });
+});
 
 app.get("/prints/new", function(req, res){
-    res.render("new.ejs");
+    res.render("print/new.ejs");
+});
+
+app.get("/prints/:id", function(req,res){
+    Print.findById(req.params.id).populate('comments').exec(function(err, foundPrint){
+        if(err){
+            console.log(err);
+        } else {
+            res.render('print/show.ejs',{print: foundPrint})
+        }
+    });
+});
+
+app.get("/prints/:id/comments/new", function(req,res){
+    Print.findById(req.params.id, function(err, foundPrint){
+        if(err){
+            console.log(err);
+        } else {
+            res.render('comments/new.ejs', {print: foundPrint})
+        }
+    });
+});
+
+app.post("/prints/:id/comments", function(req, res){
+    Print.findById(req.params.id, function(err, foundPrint){
+        if(err){
+            console.log(err);
+        } else {
+            Comment.create(req.body.comment, function(err, comment){
+                if(err){
+                    console.log(err);
+                } else {
+                    foundPrint.comments.push(comment);
+                    foundPrint.save();
+                    res.redirect('/prints/'+ foundPrint._id);
+                }
+            });
+        }
+    });
 });
 
 app.listen(3000, function(){
