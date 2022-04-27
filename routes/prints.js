@@ -59,4 +59,39 @@ router.get("/:id", function(req,res){
     });
 });
 
+router.get("/:id/edit", middleware.checkPrintOwner, function(req, res){
+    Print.findById(req.params.id, function(err, foundprint){
+        if(err){
+            console.log(err);
+        } else {
+            res.render('print/edit.ejs',{print: foundprint})
+        }
+    });
+});
+
+router.put('/:id',upload.single('image'), function(req, res){
+    if(req.file){
+        req.body.print.image = '/upload/'+req.file.filename;
+    }
+    Print.findByIdAndUpdate(req.params.id, req.body.print, function(err, updatedPrint){
+        if(err){
+            console.log(err);
+            res.redirect('/prints/');
+        } else {
+            res.redirect('/prints/'+req.params.id);
+        }
+    })
+})
+
+router.delete('/:id', middleware.checkPrintOwner, function(req,res){
+    Print.findByIdAndRemove(req.params.id, function(err){
+        if(err){
+            console.log(err);
+            res.redirect('/prints/');
+        } else {
+            res.redirect('/prints/');
+        }
+    });
+});
+
 module.exports = router;
